@@ -24,26 +24,69 @@ app.get('/', (req, res) => {
 })
 async function run() {
   const db = client.db("BookCourierDB");
+  const usersCollection = db.collection("users");
   const booksCollection = db.collection("books");
   try {
     
     await client.connect();
+
+
+app.post('/users', async (req, res) => {
+  const user = req.body;
+
+  const existingUser = await usersCollection.findOne({ email: user.email });
+
+  if (existingUser) {
+    return res.status(409).send({ message: "Email already registered" });
+   
+  }
+
+  const result = await usersCollection.insertOne(user);
+  res.send(result);
+});
+app.get('/users', async (req, res) => {
+  const email = req.query.email;
+  const query = { email: email };
+  const user = await usersCollection.findOne(query);
+  res.send(user);
+});
+
+app.get('/allusers', async (req, res) => {
+  const result = await usersCollection.find().toArray();
+  res.send(result);
+});
+
+app.patch('/users/:id', async (req, res) => {
+  const id = req.params.id;
+  const filter = { _id: new ObjectId(id) };
+  const updatedUser = req.body;
+  console.log(updatedUser);
+  const options = { upsert: true };
+  const user = {
+    $set: {
+      librarian : updatedUser.librarian,
+      admin : updatedUser.admin,
+    },
+  };
+  const result = await usersCollection.updateOne(filter, user, options);
+  res.send(result);
+});
+
     app.post('/books', async (req, res) => {
       const book = req.body;
-      console.log(book);
+  
       res.send(book);
       const result = await booksCollection.insertOne(book);
       res.send(result);
       
     });
-
+    
     app.get('/books', async (req, res) => {
       const query = req.query;
-      console.log(query);
       const result = await booksCollection.find(query).toArray();
       res.send(result);
     });
-
+  
     app.get('/books/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
