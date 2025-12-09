@@ -43,6 +43,7 @@ app.post('/users', async (req, res) => {
 
   const result = await usersCollection.insertOne(user);
   res.send(result);
+  
 });
 app.get('/users', async (req, res) => {
   const email = req.query.email;
@@ -86,7 +87,11 @@ app.patch('/users/:id', async (req, res) => {
       const result = await booksCollection.find(query).toArray();
       res.send(result);
     });
-  
+   app.get('/allbooks', async (req, res) => {
+      
+      const result = await booksCollection.find().toArray();
+      res.send(result);
+    });
     app.get('/books/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -113,6 +118,17 @@ app.patch('/users/:id', async (req, res) => {
       const result = await booksCollection.updateOne(filter, book, options);
       res.send(result);
     });
+    app.patch('/books-admin/:id', async (req, res) => {
+  const id = req.params.id;
+  const { status } = req.body;
+
+  const result = await booksCollection.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status } }
+  );
+
+  res.send(result);
+});
 
 
     await client.db("admin").command({ ping: 1 });
