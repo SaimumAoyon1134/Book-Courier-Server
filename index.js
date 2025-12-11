@@ -26,6 +26,7 @@ async function run() {
   const usersCollection = db.collection("users");
   const booksCollection = db.collection("books");
   const coverageCollection = db.collection("coverage");
+  const ordersCollection = db.collection("orders");
   try {
     await client.connect();
 
@@ -132,46 +133,50 @@ async function run() {
         .toArray();
       res.send(result);
     });
-  app.post("/coverage", async (req, res) => {
-  try {
-    const { district, coveredArea, latitude, longitude } = req.body;
-
-    const filter = { district: district.trim() };
-
-    const updateDoc = {
-      $push: {
-        coverage: {
-          coveredArea: coveredArea.trim(),
-          latitude,
-          longitude
-        }
-      },
-      $setOnInsert: {
-        createdAt: new Date()
-      }
-    };
-
-    const options = { upsert: true };
-
-    const result = await coverageCollection.updateOne(
-      filter,
-      updateDoc,
-      options
-    );
-
-    res.status(201).send({
-      success: true,
-      message: result.upsertedId
-        ? "New district created & area added"
-        : "Area added to existing district"
+    app.get("/book/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await booksCollection.findOne(query);
+      res.send(result);
     });
-    
+    app.post("/coverage", async (req, res) => {
+      try {
+        const { district, coveredArea, latitude, longitude } = req.body;
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).send({ message: "Server error" });
-  }
-});
+        const filter = { district: district.trim() };
+
+        const updateDoc = {
+          $push: {
+            coverage: {
+              coveredArea: coveredArea.trim(),
+              latitude,
+              longitude,
+            },
+          },
+          $setOnInsert: {
+            createdAt: new Date(),
+          },
+        };
+
+        const options = { upsert: true };
+
+        const result = await coverageCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+
+        res.status(201).send({
+          success: true,
+          message: result.upsertedId
+            ? "New district created & area added"
+            : "Area added to existing district",
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Server error" });
+      }
+    });
     app.get("/coverage", async (req, res) => {
       try {
         const areas = await coverageCollection.find().toArray();
@@ -181,6 +186,30 @@ async function run() {
         res.status(500).send({ message: "Server error" });
       }
     });
+    app.post("/orders", async (req, res) => {
+      const order = req.body;
+      const result = await ordersCollection.insertOne(order);
+      res.send(result);
+    });
+
+    app.get("/myorders", async (req, res) => {
+      const email = req.query.email;
+      const query = { userEmail: email };
+      const result = await ordersCollection.find(query).toArray();
+      res.send(result);
+    });
+
+     app.delete("/order/:id", async (req, res) => {
+   
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await ordersCollection.deleteOne(query);
+        res.send(result);
+        
+     }
+
+        
+    );
     await client.db("admin").command({ ping: 1 });
 
     console.log(
@@ -189,6 +218,7 @@ async function run() {
   } finally {
   }
 }
+
 run().catch(console.dir);
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
