@@ -31,6 +31,8 @@ async function run() {
   const booksCollection = db.collection("books");
   const coverageCollection = db.collection("coverage");
   const ordersCollection = db.collection("orders");
+  const wishlistCollection = db.collection("wishlist");
+
   try {
     await client.connect();
 
@@ -46,6 +48,7 @@ async function run() {
       const result = await usersCollection.insertOne(user);
       res.send(result);
     });
+
     app.get("/users", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
@@ -305,6 +308,40 @@ async function run() {
         res.status(500).send({ success: false, message: "Server error" });
       }
     });
+    app.post("/wishlist", async (req, res) => {
+      const { userEmail, bookId } = req.body;
+
+      const exists = await wishlistCollection.findOne({ userEmail, bookId });
+      if (exists) {
+        return res.status(409).send({ message: "Already in wishlist" });
+      }
+
+      const result = await wishlistCollection.insertOne({
+        ...req.body,
+        createdAt: new Date(),
+      });
+
+      res.send(result);
+    });
+    app.get("/wishlist", async (req, res) => {
+  const email = req.query.email;
+  const result = await wishlistCollection
+    .find({ userEmail: email })
+    .toArray();
+  res.send(result);
+});
+app.delete("/wishlist/:id", async (req, res) => {
+  const id = req.params.id;
+  const result = await wishlistCollection.deleteOne({
+    _id: new ObjectId(id),
+  });
+  res.send(result);
+});
+app.get("/wishlist/check", async (req, res) => {
+  const { email, bookId } = req.query;
+  const exists = await wishlistCollection.findOne({ userEmail: email, bookId });
+  res.send({ exists: !!exists });
+});
 
     await client.db("admin").command({ ping: 1 });
 
