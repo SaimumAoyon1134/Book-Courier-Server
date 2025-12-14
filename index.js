@@ -195,10 +195,10 @@ async function run() {
       const result = await ordersCollection.insertOne(order);
       res.send(result);
     });
-    app.get("/orders",async (req,res)=>{
-        const result = await ordersCollection.find().toArray();
-        res.send(result);
-    })
+    app.get("/orders", async (req, res) => {
+      const result = await ordersCollection.find().toArray();
+      res.send(result);
+    });
     app.get("/myorders", async (req, res) => {
       const email = req.query.email;
       const query = { userEmail: email };
@@ -209,15 +209,14 @@ async function run() {
     app.patch("/order/:id", async (req, res) => {
       const id = req.params.id;
       const data = req.body;
-      console.log(data)
-      
+      console.log(data);
+
       const query = { _id: new ObjectId(id) };
-        const update = {
-          $set: data,
-        };
-        const result = await ordersCollection.updateOne(query,update);
-        res.send(result);
-      
+      const update = {
+        $set: data,
+      };
+      const result = await ordersCollection.updateOne(query, update);
+      res.send(result);
     });
 
     app.post("/create-checkout-session", async (req, res) => {
@@ -250,21 +249,61 @@ async function run() {
       res.send({ url: session.url });
     });
 
+    // app.patch("/payment-success", async (req, res) => {
+    //   const sessionId = req.query.session_id;
+    //   const session = await stripe.checkout.sessions.retrieve(sessionId);
+    //   if (session.payment_status === "paid") {
+    //     const id = session.metadata.orderId;
+    //     const query = { _id: new ObjectId(id) };
+    //     const update = {
+    //       $set: {
+    //         paymentStatus:'paid',
+    //       },
+    //     };
+    //     const result = await ordersCollection.updateOne(query,update);
+    //     res.send({success:true});
+    //   }
+    //   res.send({ success: false });
+    // });
+
     app.patch("/payment-success", async (req, res) => {
-      const sessionId = req.query.session_id;
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      if (session.payment_status === "paid") {
-        const id = session.metadata.orderId;
-        const query = { _id: new ObjectId(id) };
+      try {
+        const sessionId = req.query.session_id;
+
+        if (!sessionId) {
+          return res
+            .status(400)
+            .send({ success: false, message: "Session ID missing" });
+        }
+
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+        if (session.payment_status !== "paid") {
+          return res.send({ success: false, message: "Payment not completed" });
+        }
+
+        const orderId = session.metadata.orderId;
+
+        const query = { _id: new ObjectId(orderId) };
         const update = {
           $set: {
-            paymentStatus:'paid',
+            paymentStatus: "paid",
+            paymentId: session.id,
+            paidAt: new Date(),
           },
         };
-        const result = await ordersCollection.updateOne(query,update);
-        res.send({success:true});
+
+        const result = await ordersCollection.updateOne(query, update);
+
+        if (result.modifiedCount === 0) {
+          return res.send({ success: false, message: "Order not updated" });
+        }
+
+        res.send({ success: true });
+      } catch (error) {
+        console.error("Payment success error:", error);
+        res.status(500).send({ success: false, message: "Server error" });
       }
-      res.send({ success: false });
     });
 
     await client.db("admin").command({ ping: 1 });
