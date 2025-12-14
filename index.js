@@ -310,6 +310,7 @@ async function run() {
     });
     app.post("/wishlist", async (req, res) => {
       const { userEmail, bookId } = req.body;
+      
 
       const exists = await wishlistCollection.findOne({ userEmail, bookId });
       if (exists) {
@@ -324,24 +325,27 @@ async function run() {
       res.send(result);
     });
     app.get("/wishlist", async (req, res) => {
-  const email = req.query.email;
-  const result = await wishlistCollection
-    .find({ userEmail: email })
-    .toArray();
-  res.send(result);
-});
-app.delete("/wishlist/:id", async (req, res) => {
-  const id = req.params.id;
-  const result = await wishlistCollection.deleteOne({
-    _id: new ObjectId(id),
-  });
-  res.send(result);
-});
-app.get("/wishlist/check", async (req, res) => {
-  const { email, bookId } = req.query;
-  const exists = await wishlistCollection.findOne({ userEmail: email, bookId });
-  res.send({ exists: !!exists });
-});
+      const email = req.query.email;
+      const result = await wishlistCollection
+        .find({ userEmail: email })
+        .toArray();
+      res.send(result);
+    });
+    app.delete("/wishlist/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await wishlistCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
+    });
+    app.get("/wishlist/check", async (req, res) => {
+      const { email, bookId } = req.query;
+      const exists = await wishlistCollection.findOne({
+        userEmail: email,
+        bookId,
+      });
+      res.send({ exists: !!exists });
+    });
 
     await client.db("admin").command({ ping: 1 });
 
