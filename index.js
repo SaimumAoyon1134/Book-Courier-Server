@@ -32,6 +32,7 @@ async function run() {
   const coverageCollection = db.collection("coverage");
   const ordersCollection = db.collection("orders");
   const wishlistCollection = db.collection("wishlist");
+  const reviewsCollection = db.collection("reviews");
 
   try {
     await client.connect();
@@ -310,7 +311,6 @@ async function run() {
     });
     app.post("/wishlist", async (req, res) => {
       const { userEmail, bookId } = req.body;
-      
 
       const exists = await wishlistCollection.findOne({ userEmail, bookId });
       if (exists) {
@@ -345,6 +345,103 @@ async function run() {
         bookId,
       });
       res.send({ exists: !!exists });
+    });
+
+    app.post("/reviews", async (req, res) => {
+      try {
+        const { bookId, rating, review, userEmail, userName } = req.body;
+
+        if (!bookId || !rating || !review || !userEmail) {
+          return res.status(400).send({ message: "Missing required fields" });
+        }
+
+        // 1️⃣ Check delivered order
+        const deliveredOrder = await ordersCollection.findOne({
+          bookId,
+          userEmail,
+          orderStatus: "delivered",
+        });
+
+        if (!deliveredOrder) {
+          return res.status(403).send({
+            message: "You can review only after the book is delivered",
+          });
+        }
+
+        // 2️⃣ Prevent duplicate review
+        const alreadyReviewed = await reviewsCollection.findOne({
+          bookId,
+          userEmail,
+        });
+
+        if (alreadyReviewed) {
+          return res.status(409).send({
+            message: "You already reviewed this book",
+          });
+        }
+
+        // 3️⃣ Save review
+        const result = await reviewsCollection.insertOne({
+          bookId,
+          userEmail,
+          userName,
+          rating: Number(rating),
+          review,
+          createdAt: new Date(),
+        });
+
+        res.send(result);
+      } catch (error) {
+        console.error("Review submit error:", error);
+        res.status(500).send({ message: "Server error" });
+      }
+    });
+
+    app.get("/reviews/:bookId", async (req, res) => {
+      try {
+        const bookId = req.params.bookId;
+
+        const reviews = await reviewsCollection
+          .find({ bookId })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.send(reviews);
+      } catch (error) {
+        console.error("Fetch reviews error:", error);
+        res.status(500).send({ message: "Server error" });
+      }
+    });
+
+    app.get("/reviews/average/:bookId", async (req, res) => {
+      try {
+        const bookId = req.params.bookId;
+
+        const result = await reviewsCollection
+          .aggregate([
+            { $match: { bookId } },
+            {
+              $group: {
+                _id: "$bookId",
+                averageRating: { $avg: "$rating" },
+                totalReviews: { $sum: 1 },
+              },
+            },
+          ])
+          .toArray();
+
+        if (result.length === 0) {
+          return res.send({
+            averageRating: 0,
+            totalReviews: 0,
+          });
+        }
+
+        res.send(result[0]);
+      } catch (error) {
+        console.error("Average rating error:", error);
+        res.status(500).send({ message: "Server error" });
+      }
     });
 
     await client.db("admin").command({ ping: 1 });
