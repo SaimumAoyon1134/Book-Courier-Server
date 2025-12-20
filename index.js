@@ -134,8 +134,9 @@ async function run() {
       res.send(result);
     });
     app.get("/latest-books", async (req, res) => {
+      const query ={status:"published"}
       const result = await booksCollection
-        .find()
+        .find(query)
         .sort({ addedAt: -1 })
         .limit(6)
         .toArray();
