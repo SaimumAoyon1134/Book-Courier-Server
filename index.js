@@ -245,8 +245,8 @@ async function run() {
           orderId: paymentInfo._id,
         },
         customer_email: paymentInfo.userEmail,
-        success_url: `${process.env.SITE_DOMAIN}success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.SITE_DOMAIN}cancel`,
+        success_url: `${process.env.SITE_DOMAIN}user-dashboard/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.SITE_DOMAIN}user-dashboard/cancel`,
       });
 
       console.log(session);
