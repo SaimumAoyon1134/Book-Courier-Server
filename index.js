@@ -8,8 +8,7 @@ require("dotenv").config();
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
-const uri =
-  "mongodb+srv://BookCourierDB:1gtC86UhG5hhOvUP@bookcourierdb.qizpvyi.mongodb.net/?appName=BookCourierDb";
+const uri =process.env.URI;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
@@ -85,7 +84,36 @@ async function run() {
       const result = await booksCollection.insertOne(book);
       res.send(result);
     });
+    app.delete("/books/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const bookId = new ObjectId(id);
 
+    
+        await ordersCollection.deleteMany({ bookId: id });
+
+        
+        await wishlistCollection.deleteMany({ bookId: id });
+
+      
+        await reviewsCollection.deleteMany({ bookId: id });
+
+        
+        const result = await booksCollection.deleteOne({ _id: bookId });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Book not found" });
+        }
+
+        res.send({
+          success: true,
+          message: "Book and all related data deleted",
+        });
+      } catch (error) {
+        console.error("Delete book error:", error);
+        res.status(500).send({ message: "Server error" });
+      }
+    });
     app.get("/books", async (req, res) => {
       const query = req.query;
       const result = await booksCollection.find(query).toArray();
@@ -134,7 +162,7 @@ async function run() {
       res.send(result);
     });
     app.get("/latest-books", async (req, res) => {
-      const query ={status:"published"}
+      const query = { status: "published" };
       const result = await booksCollection
         .find(query)
         .sort({ addedAt: -1 })
